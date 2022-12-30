@@ -1,1 +1,4 @@
 Datasets/*
+tokenizer/*
+*.pkl
+models/*

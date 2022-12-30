@@ -8,28 +8,31 @@ import pandas as pd
 
 class DataPrepCNN(DataPrep):
 
-    def __init__(self, hf_datasetName = None, workers=1):
+    def __init__(self, hf_datasetName = None, workers=1, eos_token = None):
         #CNN is acquired from huggingface datasets
         #You must pass a dataset name
         assert hf_datasetName is not None, "You must pass a dataset name"
         assert len(hf_datasetName) > 1, "You must pass the name of the dataset and the version as a tuple"
         self.hf_datasetName = hf_datasetName
         self.workers = workers
+        self.eos_token = eos_token
     
     def acquire(self, from_hf=True, from_file=False, from_url=False):
         self.dataset = load_dataset(self.hf_datasetName[0], self.hf_datasetName[1])
 
     def _genCausal(self, dp, context_prompt, generator_prompt):
-        _f =  context_prompt + ": " + dp["article"] + " " + generator_prompt + ": " + dp["highlights"]
+        _end = " " + self.eos_token if self.eos_token is not None else ""
+        _f =  context_prompt + ": " + dp["article"] + " " + generator_prompt + ": " + dp["highlights"] + _end
         return {"causal": {
             "context": _f,
         }}
 
     def _genSeq2Seq(self, dp, context_prompt, generator_prompt):
+        _end = " " + self.eos_token if self.eos_token is not None else ""
         return {
             "seq2seq": {
-                "context": context_prompt + ": " + dp["article"],
-                "output": generator_prompt + ": " + dp["highlights"]
+                "context": context_prompt + ": " + dp["article"] + generator_prompt + ":",
+                "output":  dp["highlights"] + _end
             }
         }
 
@@ -58,7 +61,7 @@ class DataPrepCNN(DataPrep):
         
 
 if __name__ == "__main__":
-    dp = DataPrepCNN(hf_datasetName=("cnn_dailymail", "3.0.0"), workers=4)
+    dp = DataPrepCNN(hf_datasetName=("cnn_dailymail", "3.0.0"), workers=4, eos_token="<eoseq>")
     dp.acquire()
     dataset = dp.convertToTask("context", "summary", causal=True)
     print(dataset)
